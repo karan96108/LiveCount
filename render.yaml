@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: emotion-detection
+    env: python
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.8.0
