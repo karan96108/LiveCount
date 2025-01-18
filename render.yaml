@@ -3,7 +3,12 @@ services:
     name: emotion-detection
     env: python
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: 3.8.0
+    dockerCommand: |-
+      apt-get update && \
+      apt-get install -y libgl1-mesa-glx && \
+      apt-get install -y libglib2.0-0 && \
+      apt-get clean
