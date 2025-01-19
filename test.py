@@ -3,31 +3,33 @@ import cv2
 from deepface import DeepFace
 import time
 import numpy as np
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 def preprocess_face(face):
     face = cv2.resize(face, (224, 224))
     lab = cv2.cvtColor(face, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
     cl = clahe.apply(l)
-    enhanced = cv2.merge((cl,a,b))
+    enhanced = cv2.merge((cl, a, b))
     return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
 
 def gen_frames():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0)  # Ensure this works locally
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     
     prev_frame_time = 0
     
-    while True:
+    while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-            
+        
         new_frame_time = time.time()
-        fps = 1/(new_frame_time-prev_frame_time) if prev_frame_time > 0 else 0
+        fps = 1 / (new_frame_time - prev_frame_time) if prev_frame_time > 0 else 0
         prev_frame_time = new_frame_time
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
