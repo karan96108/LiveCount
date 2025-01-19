@@ -16,15 +16,22 @@ def preprocess_face(face):
     return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
 
 def gen_frames():
-    cap = cv2.VideoCapture(0)
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-    
-    prev_frame_time = 0
-    
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+    try:
+        # Try multiple camera indices
+        for camera_index in range(2):
+            cap = cv2.VideoCapture(camera_index)
+            if cap.isOpened():
+                break
+        
+        if not cap.isOpened():
+            raise Exception("Could not open camera")
+
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        prev_frame_time = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
             
         new_frame_time = time.time()
         fps = 1/(new_frame_time-prev_frame_time) if prev_frame_time > 0 else 0
@@ -83,6 +90,19 @@ def gen_frames():
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    except Exception as e:
+        print(f"Camera error: {str(e)}")
+        # Create error frame
+        frame = np.zeros((480, 640, 3), np.uint8)
+        cv2.putText(frame, "Camera access error", (50, 240), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    finally:
+        if 'cap' in locals():
+            cap.release()    
 
 @app.route('/')
 def index():
