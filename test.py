@@ -4,6 +4,11 @@ from deepface import DeepFace
 import time
 import numpy as np
 from PIL import Image
+import tensorflow as tf
+
+# Configure TensorFlow
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 def preprocess_face(face):
     face = cv2.resize(face, (224, 224))
@@ -18,6 +23,10 @@ def main():
     try:
         st.title("Live Emotion Detection")
         
+        # Camera selection
+        camera_options = ["Default Camera (0)", "External Camera (1)", "Virtual Camera (2)"]
+        selected_camera = st.selectbox("Select Camera", range(len(camera_options)), format_func=lambda x: camera_options[x])
+        
         # Initialize face detection
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         
@@ -29,10 +38,14 @@ def main():
         not_happy_count_text = col3.empty()
         fps_text = col4.empty()
         
-        # Start video capture
-        cap = cv2.VideoCapture(0)
+        # Start video capture with retry
+        cap = cv2.VideoCapture(selected_camera)
         if not cap.isOpened():
-            st.error("Failed to open camera")
+            st.error(f"Failed to open camera {selected_camera}")
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            frame = cv2.putText(frame, "No Camera Available", (50, 240),
+                              cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            frame_placeholder.image(frame, channels="RGB")
             return
             
         prev_frame_time = 0
