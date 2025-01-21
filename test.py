@@ -23,10 +23,6 @@ def main():
     try:
         st.title("Live Emotion Detection")
         
-        # Camera selection
-        camera_options = ["Default Camera (0)", "External Camera (1)", "Virtual Camera (2)"]
-        selected_camera = st.selectbox("Select Camera", range(len(camera_options)), format_func=lambda x: camera_options[x])
-        
         # Initialize face detection
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         
@@ -37,30 +33,39 @@ def main():
         happy_count_text = col2.empty()
         not_happy_count_text = col3.empty()
         fps_text = col4.empty()
-        
-        # Start video capture with retry
-        cap = cv2.VideoCapture(selected_camera)
-        if not cap.isOpened():
-            st.error(f"Failed to open camera {selected_camera}")
+
+        # Initialize camera with retry
+        camera_found = False
+        for camera_index in range(3):
+            cap = cv2.VideoCapture(camera_index)
+            if cap.isOpened():
+                camera_found = True
+                st.success(f"Camera initialized at index {camera_index}")
+                break
+            cap.release()
+            time.sleep(1)
+
+        if not camera_found:
+            st.error("No camera available")
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            frame = cv2.putText(frame, "No Camera Available", (50, 240),
-                              cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-            frame_placeholder.image(frame, channels="RGB")
+            cv2.putText(frame, "Camera not accessible", (50, 240),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            st.image(frame, channels="RGB")
             return
-            
+
         prev_frame_time = 0
         
-        while cap.isOpened():
+        while True:
             ret, frame = cap.read()
             if not ret:
-                st.error("Failed to capture video")
+                st.error("Failed to capture frame")
                 break
-                
+
             # Calculate FPS
             new_frame_time = time.time()
             fps = 1/(new_frame_time-prev_frame_time) if prev_frame_time > 0 else 0
             prev_frame_time = new_frame_time
-            
+
             # Detect faces
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(
@@ -69,11 +74,11 @@ def main():
                 minNeighbors=5,
                 minSize=(50, 50)
             )
-            
+
             person_count = len(faces)
             happy_count = 0
             not_happy_count = 0
-            
+
             # Process each face
             for (x, y, w, h) in faces:
                 try:
@@ -90,7 +95,7 @@ def main():
                     emotions = analysis[0]['emotion'] if isinstance(analysis, list) else analysis['emotion']
                     dominant_emotion = max(emotions.items(), key=lambda x: x[1])
                     emotion_name, confidence = dominant_emotion
-                    
+
                     if emotion_name in ['happy', 'surprise'] and confidence > 50:
                         happy_count += 1
                         emotion_text = f"Happy ({int(confidence)}%)"
@@ -99,35 +104,33 @@ def main():
                         not_happy_count += 1
                         emotion_text = f"Not Happy ({int(confidence)}%)"
                         color = (0, 0, 255)
-                        
+
                     cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-                    cv2.putText(frame, emotion_text, (x, y-10), 
+                    cv2.putText(frame, emotion_text, (x, y-10),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-                    
+
                 except Exception as e:
                     st.error(f"Error analyzing face: {str(e)}")
                     continue
-            
+
             # Update metrics
             person_count_text.metric("Total People", person_count)
             happy_count_text.metric("Happy", happy_count)
             not_happy_count_text.metric("Not Happy", not_happy_count)
             fps_text.metric("FPS", int(fps))
-            
+
             # Convert BGR to RGB for streamlit
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # Update frame
             frame_placeholder.image(frame, channels="RGB")
-            
-            # Check for stop button
+
+            # Break loop if stop button clicked
             if st.button('Stop'):
                 break
-                
+
     except Exception as e:
         st.error(f"Application error: {str(e)}")
     finally:
-        if 'cap' in locals():
+        if 'cap' in locals() and cap is not None:
             cap.release()
 
 if __name__ == '__main__':
