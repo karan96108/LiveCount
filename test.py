@@ -6,7 +6,7 @@ import numpy as np
 
 app = Flask(__name__)
 
-def preprocess_face(face):
+def preprocess_face(fac):
     face = cv2.resize(face, (224, 224))
     lab = cv2.cvtColor(face, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
